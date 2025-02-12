@@ -1,7 +1,7 @@
 import socket
 import threading
 import time
-import sys
+import os
 import uuid
 import argparse
 import readline
@@ -10,30 +10,55 @@ import readline
 
 uuid64 = uuid.uuid4()
 
+# recieved massages should always be:
+# [PEER]: filename
+# [PEER]: file_size
+# [PEER]: file_data
+
 def recieve_message(sock):
     while True:
         try:
-            message = sock.recv(1024).decode()
-            if not message:
-                break
-            
-            # save input
-
-            saved_input = readline.get_line_buffer()
-            # clear current line and print message
-            print("\r\033[K", end="")
-            print(f"\r[PEER]: {message}")
-
+            filename = sock.recv(1024).decode()
+            file_size = int(sock.recv(1024).decode())
+            print(f"Recieving file {filename} of size {file_size}")
+            with open("recieved_data/" + filename, "wb") as file:
+                while file_size > 0:
+                    file_data = sock.recv(1024)
+                    file_size -= len(file_data)
+                    file.write(file_data)
         except:
             break
-    sock.close()
+    # while True:
+    #     try:
+    #         message = sock.recv(1024).decode()
+    #         if not message:
+    #             break
+            
+    #         # save input
+
+    #         saved_input = readline.get_line_buffer()
+    #         # clear current line and print message
+    #         print("\r\033[K", end="")
+    #         print(f"\r[PEER]: {message}")
+
+    #     except:
+    #         break
+    # sock.close()
 
 def send_message(sock):
     while True:
-        message = input()
-        sock.sendall(message.encode())
-        if message == "exit":
-            break
+        filename = input("> enter file name: ")
+        file_path = "test_data/" + filename
+        file_size = os.path.getsize(file_path)
+
+        sock.send(filename.encode())
+        sock.send(str(file_size).encode())
+        time.sleep(0.1)
+        with open(file_path, "rb") as file:
+            file_data = file.read(1024)
+            while file_data:
+                sock.send(file_data)
+                file_data = file.read(1024)
     sock.close()
 
 def peer_server(port):
